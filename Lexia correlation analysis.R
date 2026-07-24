@@ -5,6 +5,7 @@ library(odbc)
 library(DBI)
 library(readxl)
 library(rstatix)
+library(stats)
 library(tidyverse)
 
 # connect to SQL database ----
@@ -222,10 +223,9 @@ lexia <- lexiaUse |>
 studentsCmasLexia <- intersect(cmas$studentNumber, lexia$studentNumber)
 
 # Correlation between cmas scaleScore and lexia currentStatus
-library(stats)
   correlationData <- cmas |>
-  filter(studentNumber %in% studentsCmasLexia) |>
-  inner_join(lexia, by = c("studentNumber", "grade")) 
+   filter(studentNumber %in% studentsCmasLexia) |>
+   inner_join(lexia, by = c("studentNumber", "grade")) 
 
 correl <- cor.test(correlationData$scaleScore, correlationData$currentStatus, method = "pearson")
 
@@ -254,7 +254,7 @@ ggplot(correlationData,
   xlim(650, 850) +
   theme_classic()
 ### Add Lexia dosage as moderator ----
-fit_map <- lm(scaleScore ~ currentStatus * dosageMet , data = correlationData)
+fit_map <- lm(scaleScore ~ currentStatus * dosageMet + readStatus, data = correlationData)
 
 # Display summary results
 summary(fit_map)
@@ -269,6 +269,7 @@ ggplot(correlationData, aes(x = currentStatus, y = scaleScore, color = dosageMet
     color = "Dosage Status"
   ) +
   scale_color_manual(values = c("Met" = "blue", "Not Met" = "orange")) +
+  facet_wrap(~ readStatus) +
   theme_minimal() +
   theme(legend.position = "top")
 
