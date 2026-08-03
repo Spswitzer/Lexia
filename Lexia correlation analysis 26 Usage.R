@@ -177,7 +177,8 @@ cmas <- qryCmas |>
   mutate(studentNumber = as.numeric(studentNumber), 
         scaleScore = as.numeric(scaleScore), 
       grade = as.numeric(grade)) |>
-  select(studentNumber, grade, readStatus, scaleScore)
+  select(studentNumber, grade, readStatus, scaleScore) |> 
+  mutate(studentNumber = as.character(studentNumber)) 
 
 lexia <- lexiaUse |> 
   clean_names('lower_camel') |> 
@@ -274,7 +275,8 @@ dibels <- qryDibels8 |>
   mutate(studentNumber = as.numeric(studentnumber), 
         profNumeric = as.numeric(profNumeric), 
       gradeId = as.numeric(gradeId)) |>
-  select(studentNumber, grade = gradeId, readStatus = readstatus, profNumeric)
+  select(studentNumber, grade = gradeId, readStatus = readstatus, profNumeric) |> 
+  mutate(studentNumber = as.character(studentNumber))
 
 # Find students that are in both datasets
 studentsDibelsLexia <- intersect(dibels$studentNumber, lexia$studentNumber)
@@ -314,7 +316,7 @@ ggplot(correlationData,
 
 #Lexia Use
 lexiaUseSummary  <- lexia |> 
-  filter(studentNumber %in% studentsCmasLexia) |> 
+ # filter(studentNumber %in% studentsDibelsLexia) |> 
   group_by(grade) |> 
   mutate(total = n()) |>
   group_by(grade, dosageMet) |>
@@ -325,16 +327,19 @@ lexiaUseSummary  <- lexia |>
   ) |>
   group_by(grade) |> 
   filter(grade <6) |>
-  mutate(grade = paste0("Grade ", grade))
-  #filter(dosageMet == "Met") 
+  mutate(grade = ifelse(grade == 0, "Grade K", paste0("Grade ", grade))) |> 
+  filter(dosageMet == "Met") 
 
 library(gt)
 gt(lexiaUseSummary 
 ) |> 
+  cols_label(dosageMet = "Dosage Category", 
+n = "Count", total = "Total", percent = "Percent") |>
   fmt_number(columns = c(n, total), decimals = 0) |>
   fmt_percent(percent, decimals = 0) |> 
   cols_align(columns = c(dosageMet),
     align = "left") |> 
+  cols_hide(columns = c(dosageMet)) |>
   #make column headers bold
   tab_header(
     title = "Lexia Core5 Usage Summary by Grade",
@@ -346,6 +351,7 @@ gt(lexiaUseSummary
   ) |> 
   #make table compact
   tab_options(
+    row_group.background.color = "lightgray",
     table.font.size = px(12),
     data_row.padding = px(2)
   )
@@ -609,7 +615,7 @@ lexiaUseSummary  <- lexia |>
   ) |>
   group_by(grade, group) |> 
   filter(grade <6) |>
-  mutate(grade = paste0("Grade ", grade)) |> 
+  mutate(grade = ifelse(grade == 0, "Grade K", paste0("Grade ", grade))) |> 
   filter(dosageMet == "Met") 
 
 library(gt)
@@ -663,9 +669,9 @@ lexiaUseSummary  <- lexia |>
   full_join(dibelsStudents, by = c("studentNumber", "grade")) |>
   filter(studentNumber %in% dibelsLexiaIntersect) |> 
     filter(grade <6) |>
-  group_by( group, groupValue) |>
+  group_by(group, groupValue) |>
   mutate(total = n()) |>
-  group_by( dosageMet, group, groupValue) |>
+  group_by(dosageMet, group, groupValue) |>
   summarise(
     n = n(),
     total = first(total),
@@ -675,15 +681,32 @@ lexiaUseSummary  <- lexia |>
   #mutate(grade = paste0("Grade ", grade))
   filter(dosageMet == "Met") |> 
   mutate(group = str_replace(group, "Bin", "Group")) |> 
-    mutate(color = ifelse(grepl("Not|No|Unknown|Exited|White", groupValue), "grey", "purple"))
+    mutate(color = ifelse(grepl("Not|No|Unknown|Exited|White", groupValue), "grey", "purple")) |> 
+  mutate(group = case_when(
+    group == "readStatus" ~ "READ Plan Status",
+    group == "frlGroup" ~ "Free or Reduced Lunch Status",
+    group == "iepGroup" ~ "IEP Status",
+    group == "gtGroup" ~ "Gifted and Talented Status",
+    group == "raceGroup" ~ "Race/Ethnicity",
+    group == "ellGroup" ~ "Multilingual Learner Status",
+    group == "all" ~ "All Students"
+  ))
 
 library(gt)
 gt(lexiaUseSummary) |> 
+  cols_label(dosageMet = "Dosage Category", 
+groupValue = "Student Group",
+n = "Count of students who met dosage criteria", total = "Total students", percent = "Percent of students who met dosage criteria") |>
+  cols_hide(columns = c(dosageMet,color)) |>
   fmt_number(columns = c(n, total), decimals = 0) |>
   fmt_percent(percent, decimals = 0) |> 
-  cols_align(columns = c(dosageMet),
+  cols_align(columns = c(groupValue),
     align = "left") |> 
-  #make column headers bold
+  cols_align(columns = c(n, total, percent),
+    align = "center") |>
+  #set width of groupValue column to 200px and n, total, percent columns to 100px
+  cols_width(c("groupValue") ~ px(200)) |>
+  cols_width(c("n", "total", "percent") ~ px(100)) |>
   tab_header(
     title = "Lexia Core5 Usage Summary by Group",
     subtitle = "Met = Students used for ≥20 weeks and met usage goals for ≥50% of weeks of usage"
@@ -692,11 +715,11 @@ gt(lexiaUseSummary) |>
     style = cell_text(weight = "bold"),
     locations = cells_column_labels(columns = everything())
   ) |> 
-  #make table compact
   tab_options(
+    row_group.background.color = "lightgray",
     table.font.size = px(12),
     data_row.padding = px(2)
-  ) 
+  )
 
 ggplot(lexiaUseSummary,
      aes(y = groupValue, 
@@ -722,6 +745,7 @@ ncol = 1,
         panel.grid = element_blank(),
       strip.background = element_rect(fill = "lightgrey",
                                      color = "white"),
+      strip.placement = "outside",
       strip.text = element_text(size = 12, 
                                 face = "bold", 
                               hjust = 0))
@@ -774,7 +798,44 @@ lexiaSchoolSummary <- lexiaUseSchoolSummary |>
 highUse <- lexiaSchoolSummary |> 
   filter(percent >= 0.5) |> 
   select(schoolName, percent, n, total, dualSchool, titleSchool) |> 
-  arrange(desc(percent))
+  arrange(desc(percent)) |> 
+ungroup() |> 
+  select(-group) |> 
+  mutate(schoolName = str_remove(schoolName, 'Elementary'))
+
+gt(highUse) |> 
+  cols_label(schoolName = "School Name", 
+            percent = "Percent ", n = "Count",
+            total = "Total Students", dualSchool = "Dual Language School", 
+            titleSchool = "Title I School") |>
+  fmt_number(columns = c(n, total), decimals = 0) |>
+  fmt_percent(percent, decimals = 0) |> 
+  cols_align(columns = c(schoolName),
+    align = "left") |> 
+  cols_align(columns = c(n, total, percent),
+    align = "center") |>
+    sub_missing(
+    columns = everything(), # Targets all columns
+    missing_text = "-"       # Replaces NA with a blank space
+  ) |> 
+    fmt_tf(
+    columns = titleSchool,
+    tf_style = "check-mark"
+  )
+  tab_header(
+    title = "Schools with High Lexia Core5 Usage",
+    subtitle = "High Usage: ≥50% of students met dosage criteria"
+  ) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_column_labels()
+  ) |> 
+opt_vertical_padding(scale = 0.25) |> 
+  tab_options(
+    row_group.background.color = "lightgray",
+    table.font.size = px(10),
+    data_row.padding = px(0)
+  )
 
 lowUse <- lexiaSchoolSummary |> 
   filter(percent < 0.4) |> 
