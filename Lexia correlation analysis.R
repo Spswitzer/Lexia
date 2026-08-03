@@ -1,5 +1,7 @@
 # Lexia correlation analysis
+
 # Load necessary libraries ----
+library(emmeans)
 library(janitor)
 library(odbc)
 library(DBI)
@@ -254,10 +256,21 @@ ggplot(correlationData,
   xlim(650, 850) +
   theme_classic()
 ### Add Lexia dosage as moderator ----
-fit_map <- lm(scaleScore ~ currentStatus * dosageMet + readStatus, data = correlationData)
+fit_map <- lm(scaleScore ~ currentStatus * dosageMet + readStatus , data = correlationData)
 
 # Display summary results
 summary(fit_map)
+
+#calculate estimated marginal means for currentStatus
+# View means broken down by both interacting variables
+emm_interaction <- emmeans(fit_map, ~ currentStatus * dosageMet + readStatus )
+emm_interaction
+
+
+# Calculates Cohen's d for currentStatus at each level of dosageMet
+effOutputs <- eff_size(emm_interaction, sigma = sigma(fit_map), edf = df.residual(fit_map))
+
+df <- as.data.frame(effOutputs)
 
 ggplot(correlationData, aes(x = currentStatus, y = scaleScore, color = dosageMet)) +
   geom_jitter(alpha = 0.3) +
