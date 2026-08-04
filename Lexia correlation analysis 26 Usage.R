@@ -189,10 +189,9 @@ lexia <- lexiaUse |>
   mutate(dosageMet = case_when(
     percentWeeksMetUsage >= 0.50 & weeksOfUse >= 20 ~ "Met", 
     percentWeeksMetUsage < 0.50 & weeksOfUse >= 20 ~ "Did Not Meet", 
-     weeksOfUse < 20 ~ "Did Not Use for Sufficient Weeks", 
-     TRUE ~ "Unknown")) |>
+     weeksOfUse < 20 ~ "Did Not Use for Sufficient Weeks")) |>
   mutate(dosageMet = factor(dosageMet,
-                     levels = c("Met", "Did Not Meet", "Did Not Use for Sufficient Weeks", "Unknown")))
+                     levels = c("Met", "Did Not Meet", "Did Not Use for Sufficient Weeks")))
  # mutate(dosageMet = factor(if_else(percentWeeksMetUsage >= 0.50 & weeksOfUse >= 20, "Met", "Not Met"), 
                        #    levels = c("Met", "Not Met")))
 
@@ -231,14 +230,14 @@ ggplot(correlationData,
   xlim(650, 850) +
   theme_classic()
 ### Add Lexia dosage as moderator ----
-fit_map <- lm(scaleScore ~ currentStatus * dosageMet + readStatus , data = correlationData)
+fit_map <- lm(scaleScore ~ currentStatus *  readStatus , data = correlationData)
 
 # Display summary results
 summary(fit_map)
 
 #calculate estimated marginal means for currentStatus
 # View means broken down by both interacting variables
-emm_interaction <- emmeans(fit_map, ~ currentStatus * dosageMet + readStatus )
+emm_interaction <- emmeans(fit_map, ~ currentStatus * readStatus )
 emm_interaction
 
 
@@ -256,7 +255,7 @@ ggplot(correlationData, aes(x = currentStatus, y = scaleScore, color = dosageMet
     y = "CMAS Scale Score",
     color = "Dosage Status"
   ) +
-  scale_color_manual(values = c("Met" = "blue", "Not Met" = "orange")) +
+  scale_color_manual(values = c("Met" = "blue", "Did Not Meet" = "orange", "Did Not Use for Sufficient Weeks" = "gray")) +
   facet_wrap(~ readStatus) +
   theme_minimal() +
   theme(legend.position = "top")
@@ -614,7 +613,7 @@ lexiaUseSummary  <- lexia |>
     percent = round(n / first(total), 2)
   ) |>
   group_by(grade, group) |> 
-  filter(grade <6) |>
+  filter(grade <4) |>
   mutate(grade = ifelse(grade == 0, "Grade K", paste0("Grade ", grade))) |> 
   filter(dosageMet == "Met") 
 
@@ -668,7 +667,7 @@ ggplot(lexiaFiltered,
 lexiaUseSummary  <- lexia |> 
   full_join(dibelsStudents, by = c("studentNumber", "grade")) |>
   filter(studentNumber %in% dibelsLexiaIntersect) |> 
-    filter(grade <6) |>
+    filter(grade <4) |>
   group_by(group, groupValue) |>
   mutate(total = n()) |>
   group_by(dosageMet, group, groupValue) |>
