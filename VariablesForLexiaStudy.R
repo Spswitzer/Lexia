@@ -316,7 +316,8 @@ lexia <- lexiaUse |>
   left_join(dibels) |> 
   left_join(map) |> 
   mutate(endYear = 2026) |> 
-  mutate(endYear = factor(endYear)) 
+  mutate(endYear = factor(endYear)) |> 
+  arrange(readPlanEnd)
 
 # School Variables for Lexia Study ----
 #School-level average prior achievement (not just program users), School-level SES, % chronic absenteeism rate
@@ -418,7 +419,8 @@ dataDictionaryStudent <- data.frame(
     "MAP Winter proficiency description",
     "MAP Spring proficiency description",
     "End year of data collection"), 
-    varType = map_chr(lexia, ~ class(.x)[1])
+    varType = map_chr(lexia, ~ class(.x)[1]), 
+    examples = map_chr(lexia, ~ paste(head(.x, 3), collapse = ", "))
   )
 
 dataDictionarySchool <- data.frame(
@@ -437,7 +439,8 @@ dataDictionarySchool <- data.frame(
     "Free/reduced lunch rate",
     "End year of data collection"
   ),
-  varType = map_chr(schoolData, ~ class(.x)[1])
+  varType = map_chr(schoolData, ~ class(.x)[1]), 
+  examples = map_chr(schoolData, ~ paste(head(.x, 3), collapse = ", "))
 )
 # Save data dictionaries
 write.csv(dataDictionaryStudent, "g:/Shared drives/Research & Assessment Design (RAD)/L1 Projects/Early Learning/Lexia/data/dataDictionaryStudent.csv", row.names = FALSE)
