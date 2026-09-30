@@ -261,7 +261,6 @@ ggplot(correlationData, aes(x = currentStatus, y = scaleScore, color = dosageMet
   theme(legend.position = "top")
 
 ## DIBELS ----
-
 dibels <- qryDibels8 |> 
   clean_names('lower_camel') |> 
   filter(testingPeriodName == 'End') |> 
